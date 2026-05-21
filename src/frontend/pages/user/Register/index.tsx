@@ -12,7 +12,6 @@ interface RegisterFormValues {
 	email: string;
 	password: string;
 	confirmPassword: string;
-	studentCode?: string;
 	phone?: string;
 }
 
@@ -26,7 +25,6 @@ const Register: React.FC = () => {
 				email: values.email,
 				username: values.username,
 				password: values.password,
-				studentCode: values.studentCode,
 				phone: values.phone,
 			});
 			message.success('Đăng ký thành công!');
@@ -74,14 +72,6 @@ const Register: React.FC = () => {
 						]}
 					>
 						<Input prefix={<MailOutlined />} placeholder="Nhập email" />
-					</Form.Item>
-
-					<Form.Item
-						label="Mã sinh viên"
-						name="studentCode"
-						rules={[{ required: true, message: 'Vui lòng nhập mã sinh viên!' }]}
-					>
-						<Input placeholder="Nhập mã sinh viên nếu là sinh viên" />
 					</Form.Item>
 
 					<Form.Item label="Số điện thoại" name="phone">
