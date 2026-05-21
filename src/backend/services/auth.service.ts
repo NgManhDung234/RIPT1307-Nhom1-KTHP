@@ -55,10 +55,6 @@ export const registerUser = async (payload: RegisterPayload) => {
 		throw new Error('Vai trò tài khoản không hợp lệ');
 	}
 
-	if (!payload.studentCode) {
-		throw new Error('Tài khoản sinh viên cần có mã sinh viên');
-	}
-
 	// Validate password strength
 	validatePasswordStrength(payload.password);
 
@@ -68,12 +64,12 @@ export const registerUser = async (payload: RegisterPayload) => {
 	}
 
 	const [existingUsers] = await dbPool.query<RowDataPacket[]>(
-		'SELECT id FROM users WHERE email = ? OR username = ? OR (student_code IS NOT NULL AND student_code = ?) LIMIT 1',
-		[payload.email, payload.username, payload.studentCode || null],
+		'SELECT id FROM users WHERE email = ? OR username = ? LIMIT 1',
+		[payload.email, payload.username],
 	);
 
 	if (existingUsers.length > 0) {
-		throw new Error('Email, tên đăng nhập hoặc mã sinh viên đã tồn tại');
+		throw new Error('Email hoặc tên đăng nhập đã tồn tại');
 	}
 
 	const passwordHash = await bcrypt.hash(payload.password, SALT_ROUNDS);

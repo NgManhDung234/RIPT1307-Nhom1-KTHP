@@ -323,6 +323,8 @@ student
 
 Tài khoản tự đăng ký không thể tự chọn quyền quản lí.
 
+**Lưu ý:** Đây là web tuyển sinh, không yêu cầu mã sinh viên khi đăng ký. Mã sinh viên là trường tùy chọn trong database.
+
 ### Đăng nhập
 
 Vào:
