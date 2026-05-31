@@ -16,7 +16,7 @@ const ManagerPage: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
 
   if (!user || user.role !== 'manager') {
-    message.error('Bạn không có quyền truy cập trang quản lí');
+    message.error('Bạn không có quyền truy cập trang quản lý');
     history.replace('/user/login');
     return null;
   }
