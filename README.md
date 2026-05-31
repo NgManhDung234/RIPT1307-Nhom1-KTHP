@@ -35,4 +35,3 @@ yarn start
 yarn build
 ```
 
-# Khachhang
