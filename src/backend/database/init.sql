@@ -248,10 +248,4 @@ INSERT INTO majors (university_id, code, name) VALUES
 INSERT INTO major_combinations (major_id, combination_id) VALUES
 (1,1),(1,2),(2,1),(2,2),(3,1),(4,3),(4,1),(5,1),(5,3),(6,3),(7,3),(7,1),(8,1),(8,2),(9,1),(9,2);
 
--- Dữ liệu mẫu: Hồ sơ thí sinh với đủ trạng thái để test
-INSERT INTO profiles (user_id, full_name, dob, gender, cccd_number, phone, permanent_address, priority_area, priority_object, score_subject_1, score_subject_2, score_subject_3, total_score, priority_score, final_score, status, reject_reason, cccd_front_url, cccd_back_url, avatar_url)
-SELECT u.id, 'Nguyễn Văn Sinh Viên', '2006-05-15', 'MALE', '001234567890', '0123456789',
-'123 Đường Lê Lợi, Quận 1, TP.HCM', 'KV1', 'UT2',
-8.5, 7.0, 9.0, 24.5, 0.5, 25.0, 'PENDING', NULL,
-'/uploads/cccd_front.jpg', '/uploads/cccd_back.jpg', '/uploads/avatar.jpg'
-FROM users u WHERE u.username='student01';
+
