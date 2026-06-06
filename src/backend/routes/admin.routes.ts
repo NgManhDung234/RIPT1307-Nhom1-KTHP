@@ -102,7 +102,7 @@ router.put('/profiles/:id/approve', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Hồ sơ không hợp lệ để duyệt (phải ở trạng thái PENDING)' });
     }
 
-    // Ghi log email (thực tế sẽ gửi mail — để nhóm 2 tích hợp nodemailer)
+    // Ghi log email 
     const [profileRows] = await dbPool.query<RowDataPacket[]>('SELECT id FROM profiles WHERE id = ?', [id]);
     if (profileRows.length) {
       await dbPool.query(
@@ -218,7 +218,7 @@ router.get('/universities', async (_req: AuthRequest, res: Response) => {
 });
 
 //  GET /api/admin/export/profiles 
-// Trả về toàn bộ dữ liệu để FE tự xuất Excel (dùng thư viện xlsx đã có sẵn)
+// Trả về toàn bộ dữ liệu để FE tự xuất Excel 
 router.get('/export/profiles', async (req: AuthRequest, res: Response) => {
   try {
     const { status } = req.query;
