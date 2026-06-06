@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import databaseRoutes from './routes/database.routes';
 import authRoutes from './routes/auth.routes';
+import adminRoutes from './routes/admin.routes';
 import admissionRoutes from './routes/admission.routes';
 
 dotenv.config();
@@ -23,6 +24,7 @@ app.get('/', (_req, res) => {
 
 app.use('/api/database', databaseRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/admission', admissionRoutes);
 
 app.listen(port, () => {
