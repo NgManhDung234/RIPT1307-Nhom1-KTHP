@@ -13,8 +13,13 @@ USE student_management;
 -- =========================================================================
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS email_logs;
+DROP TABLE IF EXISTS admission_wishes;
+DROP TABLE IF EXISTS admission_applications;
 DROP TABLE IF EXISTS applications;
 DROP TABLE IF EXISTS profiles;
+DROP TABLE IF EXISTS potential_students;
+DROP TABLE IF EXISTS admin_online_status;
+DROP TABLE IF EXISTS chat_history;
 DROP TABLE IF EXISTS major_combinations;
 DROP TABLE IF EXISTS combinations;
 DROP TABLE IF EXISTS majors;
@@ -157,7 +162,170 @@ CREATE TABLE email_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =========================================================================
--- 5. CHÈN DỮ LIỆU MẪU (MOCK DATA)
+-- 5. BẢNG HỒ SƠ TUYỂN SINH (Đăng ký online của sinh viên)
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS admission_applications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    status ENUM('draft','submitted','reviewing','approved','rejected','needs_revision') DEFAULT 'draft',
+    personal_info JSON DEFAULT NULL,
+    academic_info JSON DEFAULT NULL,
+    documents_info JSON DEFAULT NULL,
+    confirmation_checked TINYINT(1) DEFAULT 0,
+    submitted_at TIMESTAMP NULL DEFAULT NULL,
+    reviewed_at TIMESTAMP NULL DEFAULT NULL,
+    rejection_reason TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS admission_wishes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    application_id INT NOT NULL,
+    priority_order INT NOT NULL,
+    school_name VARCHAR(255) NOT NULL,
+    major_name VARCHAR(255) NOT NULL,
+    subject_group VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (application_id) REFERENCES admission_applications(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =========================================================================
+-- 6. BẢNG THÍ SINH TIỀM NĂNG (AI trích xuất từ chat)
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS potential_students (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    session_id VARCHAR(100) DEFAULT NULL,
+    user_id INT DEFAULT NULL,
+    student_name VARCHAR(255) DEFAULT NULL,
+    score DECIMAL(5,2) DEFAULT NULL,
+    subject_group VARCHAR(50) DEFAULT NULL,
+    target_major VARCHAR(255) DEFAULT NULL,
+    phone VARCHAR(20) DEFAULT NULL,
+    email VARCHAR(100) DEFAULT NULL,
+    notes TEXT DEFAULT NULL,
+    reviewed BOOLEAN DEFAULT FALSE,
+    reviewed_by INT DEFAULT NULL,
+    reviewed_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_reviewed (reviewed),
+    INDEX idx_created (created_at),
+    INDEX idx_session (session_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =========================================================================
+-- 7. BẢNG CHAT AI (Lịch sử hội thoại & Online status)
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS chat_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    session_id VARCHAR(100) NOT NULL,
+    user_id INT DEFAULT NULL,
+    role ENUM('user','assistant','admin','system') NOT NULL,
+    content TEXT NOT NULL,
+    metadata JSON DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_session (session_id),
+    INDEX idx_user (user_id),
+    INDEX idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS admin_online_status (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NOT NULL UNIQUE,
+    is_online BOOLEAN DEFAULT FALSE,
+    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =========================================================================
+-- 8. BẢNG ĐIỂM CHUẨN TUYỂN SINH
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS cutoff_scores (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    university_id INT NOT NULL,
+    combination_id INT NOT NULL,
+    year INT NOT NULL DEFAULT 2026,
+    score DECIMAL(4,2) NOT NULL,
+    notes VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_cutoff (university_id, combination_id, year),
+    FOREIGN KEY (university_id) REFERENCES universities(id) ON DELETE CASCADE,
+    FOREIGN KEY (combination_id) REFERENCES combinations(id) ON DELETE CASCADE,
+    INDEX idx_cutoff_year (year)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Chèn dữ liệu điểm chuẩn mẫu năm 2026 (dùng subquery để không phụ thuộc ID)
+INSERT INTO cutoff_scores (university_id, combination_id, year, score, notes)
+SELECT u.id, c.id, 2026, cs.score, cs.notes FROM
+(SELECT 'BKH' AS university_code, 'A00' AS combination_code, 27.75 AS score, 'Khối A00 - Toán, Lý, Hóa' AS notes UNION ALL
+ SELECT 'BKH', 'A01', 28.00, 'Khối A01 - Toán, Lý, Anh' UNION ALL
+ SELECT 'BKH', 'D01', 29.00, 'Khối D01 - Toán, Văn, Anh' UNION ALL
+ SELECT 'BKH', 'C00', 27.00, 'Khối C00 - Văn, Sử, Địa' UNION ALL
+ SELECT 'NEU', 'D01', 26.50, 'Khối D01 - Toán, Văn, Anh' UNION ALL
+ SELECT 'NEU', 'C00', 26.00, 'Khối C00 - Văn, Sử, Địa' UNION ALL
+ SELECT 'NEU', 'A00', 27.00, 'Khối A00 - Toán, Lý, Hóa' UNION ALL
+ SELECT 'VNU', 'A00', 28.25, 'Khối A00 - Toán, Lý, Hóa' UNION ALL
+ SELECT 'VNU', 'A01', 27.75, 'Khối A01 - Toán, Lý, Anh' UNION ALL
+ SELECT 'VNU', 'D01', 28.00, 'Khối D01 - Toán, Văn, Anh' UNION ALL
+ SELECT 'VNU', 'C00', 27.00, 'Khối C00 - Văn, Sử, Địa' UNION ALL
+ SELECT 'FTU', 'D01', 27.50, 'Khối D01 - Toán, Văn, Anh' UNION ALL
+ SELECT 'FTU', 'C00', 27.00, 'Khối C00 - Văn, Sử, Địa' UNION ALL
+ SELECT 'FTU', 'A00', 28.00, 'Khối A00 - Toán, Lý, Hóa' UNION ALL
+ SELECT 'PTIT', 'A00', 27.75, 'Khối A00 - Toán, Lý, Hóa' UNION ALL
+ SELECT 'PTIT', 'A01', 27.50, 'Khối A01 - Toán, Lý, Anh' UNION ALL
+ SELECT 'PTIT', 'D01', 28.00, 'Khối D01 - Toán, Văn, Anh') AS cs
+JOIN universities u ON u.code = cs.university_code
+JOIN combinations c ON c.code = cs.combination_code;
+
+-- Chèn dữ liệu điểm chuẩn năm 2025
+INSERT INTO cutoff_scores (university_id, combination_id, year, score, notes)
+SELECT u.id, c.id, 2025, cs.score, cs.notes FROM
+(SELECT 'BKH' AS university_code, 'A00' AS combination_code, 27.50 AS score, 'Khối A00 - Toán, Lý, Hóa' AS notes UNION ALL
+ SELECT 'BKH', 'A01', 27.75, 'Khối A01 - Toán, Lý, Anh' UNION ALL
+ SELECT 'BKH', 'D01', 28.50, 'Khối D01 - Toán, Văn, Anh' UNION ALL
+ SELECT 'BKH', 'C00', 26.75, 'Khối C00 - Văn, Sử, Địa' UNION ALL
+ SELECT 'NEU', 'D01', 26.25, 'Khối D01 - Toán, Văn, Anh' UNION ALL
+ SELECT 'NEU', 'C00', 25.75, 'Khối C00 - Văn, Sử, Địa' UNION ALL
+ SELECT 'NEU', 'A00', 26.50, 'Khối A00 - Toán, Lý, Hóa' UNION ALL
+ SELECT 'VNU', 'A00', 27.75, 'Khối A00 - Toán, Lý, Hóa' UNION ALL
+ SELECT 'VNU', 'A01', 27.50, 'Khối A01 - Toán, Lý, Anh' UNION ALL
+ SELECT 'VNU', 'D01', 27.50, 'Khối D01 - Toán, Văn, Anh' UNION ALL
+ SELECT 'VNU', 'C00', 26.50, 'Khối C00 - Văn, Sử, Địa' UNION ALL
+ SELECT 'FTU', 'D01', 27.00, 'Khối D01 - Toán, Văn, Anh' UNION ALL
+ SELECT 'FTU', 'C00', 26.50, 'Khối C00 - Văn, Sử, Địa' UNION ALL
+ SELECT 'FTU', 'A00', 27.25, 'Khối A00 - Toán, Lý, Hóa' UNION ALL
+ SELECT 'PTIT', 'A00', 27.25, 'Khối A00 - Toán, Lý, Hóa' UNION ALL
+ SELECT 'PTIT', 'A01', 27.00, 'Khối A01 - Toán, Lý, Anh' UNION ALL
+ SELECT 'PTIT', 'D01', 27.50, 'Khối D01 - Toán, Văn, Anh') AS cs
+JOIN universities u ON u.code = cs.university_code
+JOIN combinations c ON c.code = cs.combination_code;
+
+-- Chèn dữ liệu điểm chuẩn năm 2024
+INSERT INTO cutoff_scores (university_id, combination_id, year, score, notes)
+SELECT u.id, c.id, 2024, cs.score, cs.notes FROM
+(SELECT 'BKH' AS university_code, 'A00' AS combination_code, 27.00 AS score, 'Khối A00 - Toán, Lý, Hóa' AS notes UNION ALL
+ SELECT 'BKH', 'A01', 27.25, 'Khối A01 - Toán, Lý, Anh' UNION ALL
+ SELECT 'BKH', 'D01', 28.00, 'Khối D01 - Toán, Văn, Anh' UNION ALL
+ SELECT 'BKH', 'C00', 26.25, 'Khối C00 - Văn, Sử, Địa' UNION ALL
+ SELECT 'NEU', 'D01', 25.75, 'Khối D01 - Toán, Văn, Anh' UNION ALL
+ SELECT 'NEU', 'C00', 25.25, 'Khối C00 - Văn, Sử, Địa' UNION ALL
+ SELECT 'NEU', 'A00', 26.00, 'Khối A00 - Toán, Lý, Hóa' UNION ALL
+ SELECT 'VNU', 'A00', 27.25, 'Khối A00 - Toán, Lý, Hóa' UNION ALL
+ SELECT 'VNU', 'A01', 27.00, 'Khối A01 - Toán, Lý, Anh' UNION ALL
+ SELECT 'VNU', 'D01', 27.00, 'Khối D01 - Toán, Văn, Anh' UNION ALL
+ SELECT 'VNU', 'C00', 26.00, 'Khối C00 - Văn, Sử, Địa' UNION ALL
+ SELECT 'FTU', 'D01', 26.50, 'Khối D01 - Toán, Văn, Anh' UNION ALL
+ SELECT 'FTU', 'C00', 26.00, 'Khối C00 - Văn, Sử, Địa' UNION ALL
+ SELECT 'FTU', 'A00', 26.75, 'Khối A00 - Toán, Lý, Hóa' UNION ALL
+ SELECT 'PTIT', 'A00', 26.75, 'Khối A00 - Toán, Lý, Hóa' UNION ALL
+ SELECT 'PTIT', 'A01', 26.50, 'Khối A01 - Toán, Lý, Anh' UNION ALL
+ SELECT 'PTIT', 'D01', 27.00, 'Khối D01 - Toán, Văn, Anh') AS cs
+JOIN universities u ON u.code = cs.university_code
+JOIN combinations c ON c.code = cs.combination_code;
+
+-- =========================================================================
+-- 9. CHÈN DỮ LIỆU MẪU (MOCK DATA)
 -- =========================================================================
 
 -- Vai trò & Tài khoản
@@ -210,7 +378,7 @@ SELECT u.id, 'Nguyễn Văn Sinh Viên', '2006-05-15', 'MALE', '001234567890', '
 FROM users u WHERE u.username='student01';
 
 -- =========================================================================
--- 6. KIỂM TRA DỮ LIỆU SAU KHI KHỞI TẠO
+-- 10. KIỂM TRA DỮ LIỆU SAU KHI KHỞI TẠO
 -- =========================================================================
 SELECT users.id, users.full_name, users.email, users.username, roles.name AS role, users.is_active
 FROM users JOIN roles ON users.role_id = roles.id;

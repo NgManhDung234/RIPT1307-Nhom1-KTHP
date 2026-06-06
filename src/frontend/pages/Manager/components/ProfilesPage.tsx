@@ -119,7 +119,7 @@ const ProfilesPage: React.FC = () => {
     { title: 'CCCD', dataIndex: 'cccd_number', width: 130, render: (v: string) => v || '—' },
     {
       title: 'Điểm XT', dataIndex: 'final_score', width: 80, align: 'center' as const,
-      render: (v: number) => v ? <Text strong style={{ color: '#1890ff' }}>{v}</Text> : '—',
+      render: (v: number) => v ? <Text strong style={{ color: '#c41e3a' }}>{v}</Text> : '—',
     },
     {
       title: 'Trạng thái', dataIndex: 'status', width: 120, align: 'center' as const,

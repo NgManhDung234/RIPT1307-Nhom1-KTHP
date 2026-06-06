@@ -40,7 +40,7 @@ const StatisticsPage: React.FC = () => {
       <Row gutter={[16, 16]}>
         <Col xs={12} sm={6}>
           <Card className={styles.statCard}>
-            <Statistic title="Tổng hồ sơ" value={stats.total} prefix={<TeamOutlined style={{ color: '#1890ff' }} />} />
+            <Statistic title="Tổng hồ sơ" value={stats.total} prefix={<TeamOutlined style={{ color: '#c41e3a' }} />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
