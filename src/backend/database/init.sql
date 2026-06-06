@@ -9,6 +9,8 @@ FLUSH PRIVILEGES;
 USE student_management;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS admission_wishes;
+DROP TABLE IF EXISTS admission_applications;
 DROP TABLE IF EXISTS password_reset_tokens;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS roles;
@@ -19,22 +21,6 @@ CREATE TABLE roles (
 	name VARCHAR(50) NOT NULL UNIQUE,
 	description VARCHAR(255),
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE = InnoDB
-DEFAULT CHARSET = utf8mb4
-COLLATE = utf8mb4_unicode_ci;
-
-CREATE TABLE password_reset_tokens (
-	id INT AUTO_INCREMENT PRIMARY KEY,
-	user_id INT NOT NULL,
-	token VARCHAR(255) NOT NULL UNIQUE,
-	expires_at TIMESTAMP NOT NULL,
-	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-	CONSTRAINT fk_password_reset_tokens_users
-		FOREIGN KEY (user_id)
-		REFERENCES users(id)
-		ON DELETE CASCADE
-		ON UPDATE CASCADE
 ) ENGINE = InnoDB
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
@@ -62,13 +48,74 @@ CREATE TABLE users (
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
+CREATE TABLE password_reset_tokens (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	user_id INT NOT NULL,
+	token VARCHAR(255) NOT NULL UNIQUE,
+	expires_at TIMESTAMP NOT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+	CONSTRAINT fk_password_reset_tokens_users
+		FOREIGN KEY (user_id)
+		REFERENCES users(id)
+		ON DELETE CASCADE
+		ON UPDATE CASCADE
+) ENGINE = InnoDB
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
+CREATE TABLE admission_applications (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	user_id INT NOT NULL UNIQUE,
+	status ENUM('draft', 'submitted', 'reviewing', 'approved', 'rejected', 'needs_revision') NOT NULL DEFAULT 'draft',
+	personal_info JSON NULL,
+	academic_info JSON NULL,
+	documents_info JSON NULL,
+	confirmation_checked BOOLEAN DEFAULT FALSE,
+	submitted_at TIMESTAMP NULL DEFAULT NULL,
+	reviewed_at TIMESTAMP NULL DEFAULT NULL,
+	rejection_reason TEXT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+	CONSTRAINT fk_admission_applications_users
+		FOREIGN KEY (user_id)
+		REFERENCES users(id)
+		ON DELETE CASCADE
+		ON UPDATE CASCADE
+) ENGINE = InnoDB
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
+CREATE TABLE admission_wishes (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	application_id INT NOT NULL,
+	priority_order INT NOT NULL,
+	school_name VARCHAR(255) NOT NULL,
+	major_name VARCHAR(255) NOT NULL,
+	subject_group VARCHAR(255) NOT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+	CONSTRAINT fk_admission_wishes_applications
+		FOREIGN KEY (application_id)
+		REFERENCES admission_applications(id)
+		ON DELETE CASCADE
+		ON UPDATE CASCADE,
+
+	UNIQUE KEY uq_admission_wishes_application_priority (application_id, priority_order)
+) ENGINE = InnoDB
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
 CREATE INDEX idx_users_role_id ON users(role_id);
 CREATE INDEX idx_users_is_active ON users(is_active);
 CREATE INDEX idx_users_username_email ON users(username, email);
+CREATE INDEX idx_admission_applications_status ON admission_applications(status);
 
 INSERT INTO roles (name, description)
 VALUES
-	('manager', 'Tài khoản quản lí'),
+	('manager', 'Tài khoản quản lý'),
 	('student', 'Tài khoản sinh viên');
 
 INSERT INTO users (
@@ -82,7 +129,7 @@ INSERT INTO users (
 )
 VALUES
 	(
-		'Nguyễn Văn Quản Lí',
+		'Nguyễn Văn Quản Lý',
 		'manager@example.com',
 		'manager01',
 		'$2b$10$8IaJ8Wec9f/XLHfdLMMvu.BWbF18KTx110RxxBKzir1kK0OF5up5W',
@@ -98,6 +145,50 @@ VALUES
 		(SELECT id FROM roles WHERE name = 'student'),
 		'SV001',
 		'0123456789'
+	);
+
+INSERT INTO admission_applications (
+	user_id,
+	status,
+	personal_info,
+	academic_info,
+	documents_info,
+	confirmation_checked
+)
+VALUES
+	(
+		(SELECT id FROM users WHERE username = 'student01'),
+		'draft',
+		JSON_OBJECT(
+			'fullName', 'Nguyễn Văn Sinh Viên',
+			'phone', '0123456789',
+			'citizenId', '012345678901'
+		),
+		NULL,
+		JSON_OBJECT(
+			'items', JSON_ARRAY(
+				JSON_OBJECT('key', 'cccd_front', 'label', 'CCCD mặt trước', 'status', 'missing'),
+				JSON_OBJECT('key', 'cccd_back', 'label', 'CCCD mặt sau', 'status', 'missing'),
+				JSON_OBJECT('key', 'portrait', 'label', 'Ảnh chân dung', 'status', 'missing')
+			)
+		),
+		FALSE
+	);
+
+INSERT INTO admission_wishes (
+	application_id,
+	priority_order,
+	school_name,
+	major_name,
+	subject_group
+)
+VALUES
+	(
+		(SELECT id FROM admission_applications WHERE user_id = (SELECT id FROM users WHERE username = 'student01')),
+		1,
+		'RIPT University',
+		'Công nghệ thông tin',
+		'A00 - Toán, Lý, Hóa'
 	);
 
 SELECT

@@ -9,7 +9,7 @@ const ManagerPage: React.FC = () => {
 	const user = getCurrentUser();
 
 	if (!user || user.role !== 'manager') {
-		message.error('Bạn không có quyền truy cập trang quản lí');
+		message.error('Bạn không có quyền truy cập trang quản lý');
 		history.replace('/user/login');
 		return null;
 	}
@@ -17,8 +17,8 @@ const ManagerPage: React.FC = () => {
 	return (
 		<div className={styles.container}>
 			<Card className={styles.card}>
-				<Title level={2}>Trang Quản Lí</Title>
-				<Text>Xin chào quản lí: {user.full_name}</Text>
+				<Title level={2}>Trang Quản Lý</Title>
+				<Text>Xin chào quản lý: {user.full_name}</Text>
 				<div className={styles.actions}>
 					<Button
 						type="primary"
