@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN npm ci
+RUN npm install --legacy-peer-deps
 
 RUN npx tsc -p tsconfig.backend.json
 
