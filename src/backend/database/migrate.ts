@@ -1,4 +1,4 @@
-import mysql from 'mysql2';
+import mysql from 'mysql2/promise';
 import { dbPool } from '../config/database';
 
 // ──────────────────────────────────────────────
@@ -204,7 +204,7 @@ const knowledgeEntries: KnowledgeEntry[] = [
 		school_id: 'ptit',
 		content:
 			'Phương thức xét tuyển PTIT: Xét tuyển dựa trên kết quả thi tốt nghiệp THPT năm 2025 kết hợp với học bạ lớp 12. Thí sinh cần đạt tổng điểm 3 môn theo tổ hợp xét tuyển >= điểm chuẩn.',
-		source: 'ptit_phuong_thuc_tuyen_sinh.txt',
+		source: 'ptit_phuong_thuc_tuyen_sink.txt',
 	},
 	{
 		school_id: 'ptit',
@@ -479,6 +479,18 @@ async function migrate() {
 	console.log(`[Migration] Mode: ${USE_REAL_EMBEDDING ? 'REAL (Gemini API)' : 'FALLBACK (keyword hash)'}`);
 
 	try {
+		// FIX: Khởi tạo bảng recruitment_knowledge trước để tránh lỗi ER_NO_SUCH_TABLE khi chạy trên Database trống hoàn toàn
+		await dbPool.query(`
+			CREATE TABLE IF NOT EXISTS recruitment_knowledge (
+				id INT AUTO_INCREMENT PRIMARY KEY,
+				school_id VARCHAR(50) NULL,
+				content TEXT NOT NULL,
+				embedding JSON NULL,
+				source_file VARCHAR(255) NULL,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
+		`);
+
 		// ── 1. Schools table ──
 		await dbPool.query(`
 			CREATE TABLE IF NOT EXISTS schools (
