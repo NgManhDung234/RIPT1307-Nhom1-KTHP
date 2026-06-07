@@ -1,5 +1,5 @@
 [build]
-  command = "yarn build"
+  command = "yarn install --ignore-engines && yarn build"
   publish = "dist"
 
 [[redirects]]
@@ -9,3 +9,5 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  UMI_APP_API_URL = "https://ript1307-nhom1-kthp-1.onrender.com"
+
