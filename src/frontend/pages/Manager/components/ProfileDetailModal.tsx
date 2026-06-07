@@ -118,19 +118,19 @@ const ProfileDetailModal: React.FC<Props> = ({ profileId, onClose, onApprove, on
                 {detail.cccd_front_url && (
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ marginBottom: 4 }}><Text type="secondary">CCCD mặt trước</Text></div>
-                    <Image src={`http://localhost:5000${detail.cccd_front_url}`} width={180} height={110} style={{ objectFit: 'cover', borderRadius: 6 }} fallback="data:image/png;base64,iVBORw0KGgo=" />
+                    <Image src={`https://ript1307-nhom1-kthp-1.onrender.com${detail.cccd_front_url}`} width={180} height={110} style={{ objectFit: 'cover', borderRadius: 6 }} fallback="data:image/png;base64,iVBORw0KGgo=" />
                   </div>
                 )}
                 {detail.cccd_back_url && (
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ marginBottom: 4 }}><Text type="secondary">CCCD mặt sau</Text></div>
-                    <Image src={`http://localhost:5000${detail.cccd_back_url}`} width={180} height={110} style={{ objectFit: 'cover', borderRadius: 6 }} fallback="data:image/png;base64,iVBORw0KGgo=" />
+                    <Image src={`https://ript1307-nhom1-kthp-1.onrender.com${detail.cccd_back_url}`} width={180} height={110} style={{ objectFit: 'cover', borderRadius: 6 }} fallback="data:image/png;base64,iVBORw0KGgo=" />
                   </div>
                 )}
                 {detail.avatar_url && (
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ marginBottom: 4 }}><Text type="secondary">Ảnh chân dung</Text></div>
-                    <Image src={`http://localhost:5000${detail.avatar_url}`} width={100} height={130} style={{ objectFit: 'cover', borderRadius: 6 }} fallback="data:image/png;base64,iVBORw0KGgo=" />
+                    <Image src={`https://ript1307-nhom1-kthp-1.onrender.com${detail.avatar_url}`} width={100} height={130} style={{ objectFit: 'cover', borderRadius: 6 }} fallback="data:image/png;base64,iVBORw0KGgo=" />
                   </div>
                 )}
               </Space>

@@ -148,7 +148,7 @@ const StudentPage: React.FC = () => {
 	}
 
 	const availableMajors = majorsBySchool[selectedSchool] || [];
-	const previewUrl = previewDocument?.fileUrl ? `http://localhost:5000${previewDocument.fileUrl}` : '';
+	const previewUrl = previewDocument?.fileUrl ? `https://ript1307-nhom1-kthp-1.onrender.com${previewDocument.fileUrl}` : '';
 	const previewIsPdf = Boolean(
 		previewDocument &&
 			((previewDocument.fileUrl && previewDocument.fileUrl.toLowerCase().endsWith('.pdf')) ||

@@ -4,8 +4,8 @@
 
 - Frontend: http://localhost:8000
 - Trang login: http://localhost:8000/user/login
-- Backend: http://localhost:5000
-- Backend health: http://localhost:5000/api/database/health
+- Backend: https://ript1307-nhom1-kthp-1.onrender.com
+- Backend health: https://ript1307-nhom1-kthp-1.onrender.com/api/database/health
 - MariaDB/MySQL: localhost:3306
 
 ## Tai khoan mau

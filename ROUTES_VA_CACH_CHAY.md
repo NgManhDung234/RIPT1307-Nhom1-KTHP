@@ -5,7 +5,7 @@
 Hệ thống gồm 3 phần chính:
 
 - Frontend UmiJS/React chạy tại `http://localhost:8000`
-- Backend Express/TypeScript chạy tại `http://localhost:5000`
+- Backend Express/TypeScript chạy tại `https://ript1307-nhom1-kthp-1.onrender.com`
 - Database MySQL/MariaDB dùng schema trong `src/backend/database/init.sql`
 
 Thư mục chính:
@@ -46,7 +46,7 @@ npm run start:backend
 
 Backend mặc định chạy ở:
 
-- `http://localhost:5000`
+- `https://ript1307-nhom1-kthp-1.onrender.com`
 
 ### Bước 4: chạy frontend
 
@@ -94,7 +94,7 @@ Theo [config/routes.ts](/C:/Users/ADMIN/OneDrive/Documents/TRUNG/DU_AN_BTL/confi
 
 Backend base URL:
 
-- `http://localhost:5000`
+- `https://ript1307-nhom1-kthp-1.onrender.com`
 
 ### 5.1. Health check database
 
@@ -267,7 +267,7 @@ Route dùng:
 
 ### Kiểm tra backend
 
-- mở `http://localhost:5000/`
+- mở `https://ript1307-nhom1-kthp-1.onrender.com/`
 
 Kỳ vọng:
 
@@ -279,7 +279,7 @@ Kỳ vọng:
 
 ### Kiểm tra database
 
-- mở `http://localhost:5000/api/database/health`
+- mở `https://ript1307-nhom1-kthp-1.onrender.com/api/database/health`
 
 Nếu route này lỗi, cần kiểm tra:
 

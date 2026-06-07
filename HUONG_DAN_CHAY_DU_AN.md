@@ -234,13 +234,13 @@ npm run start:backend
 Nếu chạy thành công sẽ thấy thông báo tương tự:
 
 ```text
-Backend server đang chạy tại http://localhost:5000
+Backend server đang chạy tại https://ript1307-nhom1-kthp-1.onrender.com
 ```
 
 Có thể kiểm tra backend bằng đường dẫn:
 
 ```text
-http://localhost:5000/api/database/health
+https://ript1307-nhom1-kthp-1.onrender.com/api/database/health
 ```
 
 Nếu kết nối database tốt, backend sẽ trả về trạng thái thành công.

@@ -111,7 +111,7 @@ const ProfilesPage: React.FC = () => {
       title: 'Họ tên', dataIndex: 'full_name', ellipsis: true,
       render: (v: string, r: any) => (
         <Space>
-          <Avatar size="small" icon={<UserOutlined />} src={r.avatar_url ? `http://localhost:5000${r.avatar_url}` : undefined} />
+          <Avatar size="small" icon={<UserOutlined />} src={r.avatar_url ? `https://ript1307-nhom1-kthp-1.onrender.com${r.avatar_url}` : undefined} />
           <span>{v || <Text type="secondary">Chưa cập nhật</Text>}</span>
         </Space>
       ),

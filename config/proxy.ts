@@ -6,12 +6,12 @@ export default {
   dev: {
     // Proxy /api/ sang backend
     '/api/': {
-      target: 'http://localhost:5000',
+      target: 'https://ript1307-nhom1-kthp-1.onrender.com',
       changeOrigin: true,
     },
     // Proxy /socket.io/ sang backend (Socket.IO)
     '/socket.io/': {
-      target: 'http://localhost:5000',
+      target: 'https://ript1307-nhom1-kthp-1.onrender.com',
       ws: true,
       changeOrigin: true,
     },
