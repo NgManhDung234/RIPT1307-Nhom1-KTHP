@@ -18,7 +18,7 @@ yarn-error.log
 /coverage
 .idea
 # yarn.lock
-package-lock.json
+#package-lock.json
 *bak
 .vscode
 
@@ -48,3 +48,5 @@ src/backend/uploads/
 
 # Sentry Auth Token
 #.sentryclirc
+.env
+dist-backend/
