@@ -48,3 +48,5 @@ src/backend/uploads/
 
 # Sentry Auth Token
 #.sentryclirc
+.env
+dist-backend/
