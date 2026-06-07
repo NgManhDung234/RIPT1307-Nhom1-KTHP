@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Menu, Button, Avatar, Space, Typography, message } from 'antd';
+import { Layout, Menu, Button, Avatar, Space, message } from 'antd';
 import { FileTextOutlined, BarChartOutlined, LogoutOutlined, UserOutlined, DashboardOutlined, MessageOutlined } from '@ant-design/icons';
 import { history } from 'umi';
 import { getCurrentUser, logout } from '../../utils/auth';
@@ -8,8 +8,7 @@ import StatisticsPage from './components/StatisticsPage';
 import AIChatPanel from './components/AIChatPanel';
 import styles from './index.less';
 
-const { Header, Sider, Content } = Layout;
-const { Title } = Typography;
+const { Header } = Layout;
 
 const ManagerPage: React.FC = () => {
   const user = getCurrentUser();
@@ -23,14 +22,14 @@ const ManagerPage: React.FC = () => {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider
+    <div style={{ height: '100vh', display: 'flex', overflow: 'hidden', boxSizing: 'border-box' }}>
+      <Layout.Sider
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
         theme="dark"
         width={220}
-        style={{ boxShadow: '2px 0 8px rgba(0,0,0,0.15)', height: '100vh', overflow: 'hidden' }}
+        style={{ boxShadow: '2px 0 8px rgba(0,0,0,0.15)', height: '100vh', overflow: 'hidden', flexShrink: 0 }}
       >
         <div className={styles.siderWrapper}>
           <div className={styles.siderLogo}>
@@ -69,9 +68,9 @@ const ManagerPage: React.FC = () => {
             </Button>
           </div>
         </div>
-      </Sider>
+      </Layout.Sider>
 
-      <Layout>
+      <div style={{ flex: 1, minWidth: 0, height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
         <Header style={{
           background: '#fff',
           padding: '0 24px',
@@ -80,6 +79,8 @@ const ManagerPage: React.FC = () => {
           boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
           height: 56,
           lineHeight: '56px',
+          flexShrink: 0,
+          boxSizing: 'border-box',
         }}>
           <Space>
             <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#c41e3a' }} />
@@ -90,13 +91,13 @@ const ManagerPage: React.FC = () => {
           </Space>
         </Header>
 
-        <Content className={styles.content}>
+        <div className={styles.content} style={{ overflow: 'hidden', flex: 1, minHeight: 0 }}>
           {activeMenu === 'profiles' && <ProfilesPage />}
           {activeMenu === 'statistics' && <StatisticsPage />}
           {activeMenu === 'aichat' && <AIChatPanel user={user} />}
-        </Content>
-      </Layout>
-    </Layout>
+        </div>
+      </div>
+    </div>
   );
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Row, Col, Card, Statistic, Table, Tag, Empty, Spin, Button, Typography, message } from 'antd';
 import { TeamOutlined, ClockCircleOutlined, FileDoneOutlined, WarningOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getStatistics } from '../../../services/admin';
@@ -9,14 +9,34 @@ const { Title } = Typography;
 const StatisticsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<any>(null);
+  const [statsApiError, setStatsApiError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const retryCount = useRef(0);
 
   const load = async () => {
     setLoading(true);
+    setErrorMsg(null);
     try {
       const res = await getStatistics();
+      console.log('[Statistics] Response:', res.data);
       setStats(res.data.data);
-    } catch {
-      message.error('Không thể tải thống kê');
+      setStatsApiError(false);
+      retryCount.current = 0;
+    } catch (err: unknown) {
+      console.error('[Statistics] Load error:', err);
+      setStatsApiError(true);
+      retryCount.current += 1;
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || (err as Error)?.message
+        || 'Không thể tải thống kê';
+      setErrorMsg(msg);
+      if (retryCount.current === 1) {
+        message.warning(`${msg} — Đang thử lại...`);
+        await new Promise(r => setTimeout(r, 2000));
+        load();
+        return;
+      }
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -25,7 +45,20 @@ const StatisticsPage: React.FC = () => {
   useEffect(() => { load(); }, []);
 
   if (loading) return <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>;
-  if (!stats) return null;
+  if (!stats) {
+    return (
+      <Empty
+        description={
+          errorMsg
+            ? <span style={{ color: '#ff4d4f' }}>{errorMsg}</span>
+            : 'Không có dữ liệu thống kê'
+        }
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+      >
+        <Button type="primary" icon={<ReloadOutlined />} onClick={load}>Thử lại</Button>
+      </Empty>
+    );
+  }
 
   const sm: Record<string, number> = {};
   (stats.byStatus || []).forEach((s: any) => { sm[s.status] = Number(s.count); });
@@ -63,7 +96,15 @@ const StatisticsPage: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
         <Col xs={24} md={12}>
           <Card title="Theo trường đại học (nguyện vọng 1)" size="small">
-            {stats.byUniversity?.length > 0 ? (
+            {statsApiError ? (
+              <Empty description={<span style={{ color: '#ff4d4f' }}>{errorMsg}</span>} image={Empty.PRESENTED_IMAGE_SIMPLE}>
+                <Button type="primary" icon={<ReloadOutlined />} onClick={load}>Thử lại</Button>
+              </Empty>
+            ) : !stats ? (
+              <Empty description="Không có dữ liệu thống kê" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+                <Button type="primary" icon={<ReloadOutlined />} onClick={load}>Thử lại</Button>
+              </Empty>
+            ) : (
               <Table
                 dataSource={stats.byUniversity}
                 rowKey="university_name"
@@ -74,12 +115,18 @@ const StatisticsPage: React.FC = () => {
                   { title: 'Số hồ sơ', dataIndex: 'count', width: 90, render: (v: number) => <Tag color="blue">{v}</Tag> },
                 ]}
               />
-            ) : <Empty description="Chưa có dữ liệu" />}
+            )}
           </Card>
         </Col>
         <Col xs={24} md={12}>
           <Card title="Theo ngành học (top 10)" size="small">
-            {stats.byMajor?.length > 0 ? (
+            {statsApiError ? (
+              <Empty description={<span style={{ color: '#ff4d4f' }}>{errorMsg}</span>} image={Empty.PRESENTED_IMAGE_SIMPLE}>
+                <Button type="primary" icon={<ReloadOutlined />} onClick={load}>Thử lại</Button>
+              </Empty>
+            ) : !stats.byMajor?.length ? (
+              <Empty description="Chưa có dữ liệu" />
+            ) : (
               <Table
                 dataSource={stats.byMajor}
                 rowKey="major_name"
@@ -90,7 +137,7 @@ const StatisticsPage: React.FC = () => {
                   { title: 'Số hồ sơ', dataIndex: 'count', width: 90, render: (v: number) => <Tag color="green">{v}</Tag> },
                 ]}
               />
-            ) : <Empty description="Chưa có dữ liệu" />}
+            )}
           </Card>
         </Col>
       </Row>

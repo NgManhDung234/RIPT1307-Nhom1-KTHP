@@ -10,8 +10,8 @@ const getApiBase = (): string => {
   const buildUrl = (process as any).env?.UMI_APP_API_URL;
   if (buildUrl) return buildUrl;
 
-  // Local dev
-  return 'http://localhost:5000';
+  // Dùng cùng origin + port 5000 (tự động detect host hiện tại)
+  return `${window.location.protocol}//${window.location.hostname}:5000`;
 };
 
 export const API_BASE = getApiBase();

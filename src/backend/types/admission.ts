@@ -37,6 +37,11 @@ export interface AdmissionAcademicInfoPayload {
 	grade12School: string;
 	priorityArea: string;
 	priorityGroup: string;
+	scoreSubject1?: number;
+	scoreSubject2?: number;
+	scoreSubject3?: number;
+	totalScore?: number;
+	priorityScore?: number;
 }
 
 export interface AdmissionDocumentItemPayload {

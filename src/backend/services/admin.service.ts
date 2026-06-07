@@ -195,15 +195,10 @@ export const getProfileDetail = async (id: number): Promise<ProfileSummary | nul
 	const priority = academic.priority_score as number | null;
 	const finalScore = score != null && priority != null ? score + priority : score;
 
-	// Get wishes (applications)
+	// Get wishes (applications) — only use fields from admission_wishes table
 	const [wishRows] = await dbPool.query<RowDataPacket[]>(
-		`SELECT w.id, w.application_id, w.priority_order, w.school_name, w.major_name, w.subject_group,
-        u.name as university_name, m.name as major_name, m.code as major_code,
-        c.code as combination_code, c.subject_names
+		`SELECT w.id, w.application_id, w.priority_order, w.school_name, w.major_name, w.subject_group
      FROM admission_wishes w
-     LEFT JOIN universities u ON w.university_id = u.id
-     LEFT JOIN majors m ON w.major_id = m.id
-     LEFT JOIN combinations c ON w.combination_id = c.id
      WHERE w.application_id = ?
      ORDER BY w.priority_order ASC`,
 		[id],
@@ -212,10 +207,10 @@ export const getProfileDetail = async (id: number): Promise<ProfileSummary | nul
 	const applications = wishRows.map((w) => ({
 		id: Number(w.id),
 		priority_order: Number(w.priority_order),
-		university_name: (w.university_name as string) || (w.school_name as string) || '',
-		major_name: (w.major_name as string) || (w.school_name as string) || '',
-		combination_code: (w.combination_code as string) || '',
-		subject_names: (w.subject_names as string) || (w.subject_group as string) || '',
+		university_name: (w.school_name as string) || '',
+		major_name: (w.major_name as string) || '',
+		combination_code: '',
+		subject_names: (w.subject_group as string) || '',
 	}));
 
 	return {
@@ -238,11 +233,11 @@ export const getProfileDetail = async (id: number): Promise<ProfileSummary | nul
 		cccd_front_url: documents.items?.find((i) => i.key === 'cccd_front')?.fileUrl || '',
 		cccd_back_url: documents.items?.find((i) => i.key === 'cccd_back')?.fileUrl || '',
 		avatar_url: documents.items?.find((i) => i.key === 'portrait')?.fileUrl || '',
-		score_subject_1: academic.score_subject_1 as number | null,
-		score_subject_2: academic.score_subject_2 as number | null,
-		score_subject_3: academic.score_subject_3 as number | null,
-		total_score: score,
-		priority_score: priority,
+		score_subject_1: academic.scoreSubject1 as number | null,
+		score_subject_2: academic.scoreSubject2 as number | null,
+		score_subject_3: academic.scoreSubject3 as number | null,
+		total_score: (academic.totalScore as number | null) ?? score,
+		priority_score: (academic.priorityScore as number | null) ?? priority,
 		reject_reason: row.rejection_reason,
 		applications,
 	};
@@ -299,47 +294,59 @@ export const getStatistics = async (): Promise<StatisticsData> => {
 			count: (r as CountRow).count || 0,
 		}));
 
-		// By university — count wishes per university
-		const [uniRows] = await dbPool.query<RowDataPacket[]>(
-			`SELECT u.name as university_name, COUNT(DISTINCT w.application_id) as count
-     FROM admission_wishes w
-     JOIN universities u ON w.university_id = u.id
-     WHERE w.priority_order = 1
-     GROUP BY u.id, u.name
-     ORDER BY count DESC
-     LIMIT 10`,
-		);
+		// By university — count wishes per school (using school_name string field)
+		let byUniversity: Array<{ university_name: string; count: number }> = [];
+		try {
+			const [uniRows] = await dbPool.query<RowDataPacket[]>(
+				`SELECT w.school_name as university_name, COUNT(DISTINCT w.application_id) as count
+             FROM admission_wishes w
+             WHERE w.school_name IS NOT NULL AND w.school_name != ''
+               AND w.priority_order = 1
+             GROUP BY w.school_name
+             ORDER BY count DESC
+             LIMIT 10`,
+			);
+			byUniversity = (uniRows as RowDataPacket[]).map((r) => ({
+				university_name: String(r.university_name || ''),
+				count: Number(r.count) || 0,
+			}));
+		} catch (uniErr) {
+			console.warn('[getStatistics] byUniversity query failed (table may not exist):', uniErr);
+		}
 
-		// By major — count wishes per major
-		const [majorRows] = await dbPool.query<RowDataPacket[]>(
-			`SELECT m.name as major_name, COUNT(DISTINCT w.application_id) as count
-     FROM admission_wishes w
-     JOIN majors m ON w.major_id = m.id
-     GROUP BY m.id, m.name
-     ORDER BY count DESC
-     LIMIT 10`,
-		);
+		// By major — count wishes per major (using major_name string field)
+		let byMajor: Array<{ major_name: string; count: number }> = [];
+		try {
+			const [majorRows] = await dbPool.query<RowDataPacket[]>(
+				`SELECT w.major_name as major_name, COUNT(DISTINCT w.application_id) as count
+             FROM admission_wishes w
+             WHERE w.major_name IS NOT NULL AND w.major_name != ''
+             GROUP BY w.major_name
+             ORDER BY count DESC
+             LIMIT 10`,
+			);
+			byMajor = (majorRows as RowDataPacket[]).map((r) => ({
+				major_name: String(r.major_name || ''),
+				count: Number(r.count) || 0,
+			}));
+		} catch (majorErr) {
+			console.warn('[getStatistics] byMajor query failed (table may not exist):', majorErr);
+		}
 
 		// Daily — last 7 days
 		const [dailyRows] = await dbPool.query<CountRow[]>(
 			`SELECT DATE(created_at) as date, COUNT(*) as count
-     FROM admission_applications
-     WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-     GROUP BY DATE(created_at)
-     ORDER BY date ASC`,
+         FROM admission_applications
+         WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+         GROUP BY DATE(created_at)
+         ORDER BY date ASC`,
 		);
 
 		return {
 			total,
 			byStatus,
-			byUniversity: (uniRows as RowDataPacket[]).map((r) => ({
-				university_name: r.university_name as string,
-				count: Number(r.count),
-			})),
-			byMajor: (majorRows as RowDataPacket[]).map((r) => ({
-				major_name: r.major_name as string,
-				count: Number(r.count),
-			})),
+			byUniversity,
+			byMajor,
 			daily: dailyRows.map((r) => ({
 				date: String((r as CountRow).date || ''),
 				count: (r as CountRow).count || 0,
@@ -355,11 +362,11 @@ export const getStatistics = async (): Promise<StatisticsData> => {
 // GET /universities
 // ──────────────────────────────────────────────
 export const getUniversities = async (): Promise<Array<{ id: number; name: string; code: string }>> => {
-	const [rows] = await dbPool.query<RowDataPacket[]>('SELECT id, name, code FROM universities ORDER BY name');
+	const [rows] = await dbPool.query<RowDataPacket[]>('SELECT id, name, short_name as code FROM schools ORDER BY name');
 	return rows.map((r) => ({
 		id: Number(r.id),
 		name: String(r.name),
-		code: String(r.code),
+		code: String(r.code || ''),
 	}));
 };
 

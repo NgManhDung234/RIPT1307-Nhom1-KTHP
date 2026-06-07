@@ -1,11 +1,10 @@
-﻿import mysql from 'mysql2';
+import mysql from 'mysql2';
 import { dbPool } from '../config/database';
 import type {
 	ChatMessage,
 	KnowledgeChunk,
 	PotentialStudent,
 	NERExtractedData,
-	EmbedResult,
 } from '../types/ai';
 
 // ──────────────────────────────────────────────
@@ -934,10 +933,93 @@ export const classifyIntent = async (userMessage: string): Promise<{
 };
 
 // ──────────────────────────────────────────────
+// Regex-based NER fallback (luôn chạy, không phụ thuộc API)
+// ──────────────────────────────────────────────
+// ──────────────────────────────────────────────
+// Regex-based NER chỉ trích xuất từ user message gần nhất
+// Không bao giờ bắt từ AI response
+// ──────────────────────────────────────────────
+const extractNERByRegex = (lastUserMessage: string): NERExtractedData => {
+	const result: NERExtractedData = {};
+	if (!lastUserMessage || lastUserMessage.trim().length < 3) return result;
+
+	const msg = lastUserMessage.trim();
+
+	// ── 1. Trích xuất tên ─────────────────────────────────────────────
+	// [\p{L}]+ với non-capturing keyword group — bắt đầu bằng chữ hoa
+	// Stop-words trim sau capture để loại "tên", "là" nếu bị include
+	const STOP = ['tên', 'mình', 'tôi', 'đây', 'gọi', 'là'];
+	const namePattern =
+		/(?:tên\s*(?:tôi\s*)?|mình\s*|tôi\s*|đây\s*|gọi\s*)(?: là)?\s*([\p{L}]+(?:\s+[\p{L}]+){0,10})/u;
+	const nameMatch = msg.match(namePattern);
+	if (nameMatch && nameMatch[1]) {
+		let name = nameMatch[1].trim();
+		// Trim stop-words ở đầu (không trim cuối vì có thể là "Nguyễn Văn A")
+		const parts = name.split(/\s+/);
+		while (parts.length > 1 && STOP.includes(parts[0].toLowerCase())) parts.shift();
+		name = parts.join(' ');
+		name = name.replace(/[,.\-!?:;]+$/, '').trim();
+		if (name.length >= 4 && name.length <= 60 && /^[\p{Lu}\p{Ll}]/u.test(name)) {
+			result.student_name = name;
+		}
+	}
+
+	// ── 2. Trích xuất điểm ─────────────────────────────────────────────
+	const scorePatterns = [
+		/(?:điểm\s*(?:của\s*)?|được\s*|score\s*)\s*(\d{1,2}(?:[.,]\d{1,2})?)\s*(?:điểm)?/i,
+		/(\d{1,2}[.,]\d)\s*điểm/i,
+		/điểm\s+(\d{1,2}(?:[.,]\d{1,2})?)\s*(?:là\s*)?$/i,
+	];
+	for (const pat of scorePatterns) {
+		const m = msg.match(pat);
+		if (m && m[1]) {
+			const score = parseFloat(m[1].replace(',', '.'));
+			if (score >= 5 && score <= 40) {
+				result.score = score;
+				break;
+			}
+		}
+	}
+
+	// ── 3. Trích xuất khối ─────────────────────────────────────────────
+	const groupMatch = msg.match(/\b([A-D]\d{2})\b/i);
+	if (groupMatch) {
+		result.subject_group = groupMatch[1].toUpperCase();
+	}
+
+	// ── 4. Trích xuất ngành ─────────────────────────────────────────────
+	const majorPatterns = [
+		/(?:ngành|xét\s*ngành|theo\s*ngành|vào\s*ngành|thi\s*ngành|mong\s*muốn\s*ngành)\s*([^\n\t,.]{3,40})/i,
+		/(?:ngành\s*)\s*([^\n\t,.]{3,40})/i,
+	];
+	for (const pat of majorPatterns) {
+		const m = msg.match(pat);
+		if (m && m[1]) {
+			let major = m[1].trim();
+			major = major.replace(/[,.\-!?:;]+$/, '').trim();
+			if (major.length >= 3) {
+				result.target_major = major;
+				break;
+			}
+		}
+	}
+
+	return result;
+};
+
+// ──────────────────────────────────────────────
 // 7. Trích xuất thông tin thí sinh (NER)
 // ──────────────────────────────────────────────
 export const extractNER = async (conversation: string): Promise<NERExtractedData> => {
-	if (GEMINI_API_KEY === 'demo' && OPENAI_API_KEY === 'demo') {
+	// Luôn chạy regex trước — không phụ thuộc API
+	const regexResult = extractNERByRegex(conversation);
+	if (regexResult.student_name || regexResult.score || regexResult.subject_group || regexResult.target_major) {
+		console.log('[AI NER] Regex extracted:', regexResult);
+		return regexResult;
+	}
+
+	// Nếu regex không bắt được và có API key thật → thử LLM
+	if (GEMINI_API_KEY === 'demo' || !GEMINI_API_KEY) {
 		return {};
 	}
 
@@ -947,7 +1029,7 @@ export const extractNER = async (conversation: string): Promise<NERExtractedData
 		const parsed = JSON.parse(result) as NERExtractedData;
 		return parsed || {};
 	} catch (error) {
-		console.error('[AI Service] NER extraction failed:', error);
+		console.error('[AI Service] NER LLM extraction failed:', error);
 		return {};
 	}
 };
@@ -968,12 +1050,12 @@ export const savePotentialStudent = async (
      (session_id, user_id, student_name, score, subject_group, target_major, phone, email)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
-       student_name = COALESCE(VALUES(student_name), student_name),
-       score = COALESCE(VALUES(score), score),
-       subject_group = COALESCE(VALUES(subject_group), subject_group),
-       target_major = COALESCE(VALUES(target_major), target_major),
-       phone = COALESCE(VALUES(phone), phone),
-       email = COALESCE(VALUES(email), email)`,
+       student_name = IF(VALUES(student_name) IS NOT NULL AND VALUES(student_name) != '', VALUES(student_name), student_name),
+       score = IF(VALUES(score) IS NOT NULL, VALUES(score), score),
+       subject_group = IF(VALUES(subject_group) IS NOT NULL AND VALUES(subject_group) != '', VALUES(subject_group), subject_group),
+       target_major = IF(VALUES(target_major) IS NOT NULL AND VALUES(target_major) != '', VALUES(target_major), target_major),
+       phone = IF(VALUES(phone) IS NOT NULL, VALUES(phone), phone),
+       email = IF(VALUES(email) IS NOT NULL, VALUES(email), email)`,
 		[
 			sessionId,
 			userId || null,
@@ -1360,20 +1442,22 @@ export const generateChatResponse = async (
 		}
 	}
 
-	// Bước 7: Trích xuất NER (bất đồng bộ, không chặn)
-	const conversationText = [...historyMessages, { role: 'user', content: userMessage }]
-		.map((m) => `${m.role}: ${m.content}`)
-		.join('\n');
-
-	const nerData = await extractNER(conversationText);
+	// Bước 7: Trích xuất NER từ tin nhắn user gần nhất
+	// KHÔNG dùng conversationText vì AI reply chứa số gây nhiễu (VD: "30 triệu")
+	console.log('[NER Input] userMessage =', JSON.stringify(userMessage));
+	const nerData = await extractNER(userMessage);
+	console.log('[NER Output] nerData =', JSON.stringify(nerData));
 
 	// Bước 8: Lưu thí sinh tiềm năng (lưu nếu có BẤT KỲ field NER nào)
 	const hasAnyNerData = nerData.student_name || nerData.score || nerData.subject_group ||
 		nerData.target_major || nerData.phone || nerData.email;
 	if (hasAnyNerData) {
+		console.log('[NER Save] Saving potential student:', JSON.stringify(nerData));
 		await savePotentialStudent(sessionId, nerData, userId).catch((err) =>
 			console.error('[AI Service] Failed to save potential student:', err),
 		);
+	} else {
+		console.log('[NER Save] Skipped — no NER data found');
 	}
 
 	return { response: finalResponse, shouldHandoff: false, nerData };
@@ -1474,12 +1558,15 @@ export const getActiveChatSessions = async (limit = 50): Promise<Array<{
 	unread_count: number;
 }>> => {
 	const [rows] = await dbPool.query<mysql.RowDataPacket[]>(
-		`SELECT session_id, user_id, content as last_message, created_at as last_message_at
-     FROM chat_history ch1
-     WHERE created_at = (
-       SELECT MAX(created_at) FROM chat_history ch2 WHERE ch2.session_id = ch1.session_id
-     )
-     ORDER BY created_at DESC LIMIT ?`,
+		`SELECT ch.session_id, ch.user_id, ch.content as last_message, ch.created_at as last_message_at
+     FROM chat_history ch
+     INNER JOIN (
+       SELECT session_id, MAX(created_at) as max_created_at
+       FROM chat_history
+       GROUP BY session_id
+     ) latest ON ch.session_id = latest.session_id AND ch.created_at = latest.max_created_at
+     ORDER BY ch.created_at DESC
+     LIMIT ?`,
 		[limit],
 	);
 
