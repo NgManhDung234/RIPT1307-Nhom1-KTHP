@@ -48,3 +48,22 @@ export const submitAdmissionApplication = (confirmationChecked: boolean) => {
 		createAuthorizedConfig(),
 	);
 };
+
+// ── Cutoff scores ───────────────────────────────
+const CUTOFF_URL = 'http://localhost:5000/api/cutoff';
+
+export const getCutoffScores = (params?: { university_id?: number; year?: number; combination_id?: number }) => {
+	return axios.get(CUTOFF_URL, { params });
+};
+
+export const getCutoffUniversities = () => {
+	return axios.get(`${CUTOFF_URL}/universities`);
+};
+
+export const getCutoffYears = () => {
+	return axios.get(`${CUTOFF_URL}/years`);
+};
+
+export const getCutoffCombinations = () => {
+	return axios.get(`${CUTOFF_URL}/combinations`);
+};
