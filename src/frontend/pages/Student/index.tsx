@@ -695,6 +695,29 @@ const StudentPage: React.FC = () => {
 					</Form.Item>
 				</div>
 			</div>
+
+			<div className={styles.formGroup}>
+				<div className={styles.groupTitle}>Điểm thi THPT</div>
+				<div className={styles.gridThree}>
+					<Form.Item label="Điểm môn 1 (Toán)" name="scoreSubject1" rules={[{ required: true, message: 'Vui lòng nhập điểm môn 1' }]}>
+						<Input type="number" min={0} max={10} step={0.25} placeholder="0 - 10" disabled={isSubmissionLocked} />
+					</Form.Item>
+					<Form.Item label="Điểm môn 2 (Lý)" name="scoreSubject2" rules={[{ required: true, message: 'Vui lòng nhập điểm môn 2' }]}>
+						<Input type="number" min={0} max={10} step={0.25} placeholder="0 - 10" disabled={isSubmissionLocked} />
+					</Form.Item>
+					<Form.Item label="Điểm môn 3 (Hóa)" name="scoreSubject3" rules={[{ required: true, message: 'Vui lòng nhập điểm môn 3' }]}>
+						<Input type="number" min={0} max={10} step={0.25} placeholder="0 - 10" disabled={isSubmissionLocked} />
+					</Form.Item>
+				</div>
+				<div className={styles.gridTwo} style={{ marginTop: 8 }}>
+					<Form.Item label="Tổng điểm 3 môn" name="totalScore">
+						<Input type="number" placeholder="Tự động tính hoặc nhập tay" disabled={isSubmissionLocked} />
+					</Form.Item>
+					<Form.Item label="Điểm ưu tiên" name="priorityScore">
+						<Input type="number" placeholder="Điểm cộng ưu tiên" disabled={isSubmissionLocked} />
+					</Form.Item>
+				</div>
+			</div>
 		</Form>
 	);
 

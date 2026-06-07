@@ -135,7 +135,15 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ user }) => {
 	const loadActiveSessions = useCallback(async () => {
 		try {
 			const res = await getActiveSessions();
-			setActiveSessions(res.data || []);
+			const raw = res.data || [];
+			// Deduplicate theo session_id (lấy bản mới nhất nếu trùng)
+			const seen = new Set<string>();
+			const deduped = raw.filter((s) => {
+				if (seen.has(s.session_id)) return false;
+				seen.add(s.session_id);
+				return true;
+			});
+			setActiveSessions(deduped);
 		} catch {
 			// Bỏ qua lỗi
 		}
@@ -146,6 +154,14 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ user }) => {
 		loadActiveSessions();
 	}, [loadLeads, loadActiveSessions]);
 
+	// Tự động reload session định kỳ (phòng trường hợp có dữ liệu mới từ API)
+	useEffect(() => {
+		const interval = setInterval(() => {
+			loadActiveSessions();
+		}, 15000);
+		return () => clearInterval(interval);
+	}, [loadActiveSessions]);
+
 	// Các sự kiện Socket
 	useEffect(() => {
 		const unsubAlert = socket.onAdminAlert((alert) => {
@@ -153,34 +169,48 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ user }) => {
 
 			setActiveSessions((prev) => {
 				const exists = prev.find((s) => s.session_id === alert.session_id);
-				if (!exists) {
-					return [
-						{
-							session_id: alert.session_id,
-							user_id: alert.user_id || null,
-							last_message: alert.chat_history[alert.chat_history.length - 1]?.content || '',
-							last_message_at: alert.triggered_at,
-						},
-						...prev,
-					];
+				if (exists) {
+					// Cập nhật tin nhắn mới nhất, không trùng
+					return prev.map((s) =>
+						s.session_id === alert.session_id
+							? { ...s, last_message: alert.chat_history[alert.chat_history.length - 1]?.content || s.last_message, last_message_at: alert.triggered_at }
+							: s,
+					);
 				}
-				return prev;
+				return [
+					{
+						session_id: alert.session_id,
+						user_id: alert.user_id || null,
+						last_message: alert.chat_history[alert.chat_history.length - 1]?.content || '',
+						last_message_at: alert.triggered_at,
+					},
+					...prev,
+				];
 			});
 
 			setActiveChats((prev) => {
 				const next = new Map(prev);
-				next.set(alert.session_id, {
-					sessionId: alert.session_id,
-					userId: alert.user_id,
-					studentName: alert.student_name,
-					score: alert.score,
-					subjectGroup: alert.subject_group,
-					targetMajor: alert.target_major,
-					messages: alert.chat_history,
-					isTyping: false,
-					isAdminTyping: false,
-					hasNewMessage: true,
-				});
+				if (next.has(alert.session_id)) {
+					// Cập nhật tin nhắn mới nhất
+					next.set(alert.session_id, {
+						...next.get(alert.session_id)!,
+						messages: alert.chat_history,
+						hasNewMessage: selectedSession?.sessionId !== alert.session_id,
+					});
+				} else {
+					next.set(alert.session_id, {
+						sessionId: alert.session_id,
+						userId: alert.user_id,
+						studentName: alert.student_name,
+						score: alert.score,
+						subjectGroup: alert.subject_group,
+						targetMajor: alert.target_major,
+						messages: alert.chat_history,
+						isTyping: false,
+						isAdminTyping: false,
+						hasNewMessage: true,
+					});
+				}
 				return next;
 			});
 
@@ -338,12 +368,16 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ user }) => {
 			title: 'Họ tên',
 			dataIndex: 'student_name',
 			key: 'student_name',
+			width: 140,
+			ellipsis: true,
 			render: (name: string | null) => name || <Text type="secondary">Chưa rõ</Text>,
 		},
 		{
 			title: 'Điểm',
 			dataIndex: 'score',
 			key: 'score',
+			width: 70,
+			align: 'center' as const,
 			render: (score: number | null) =>
 				score ? <Tag color="blue">{score}</Tag> : <Text type="secondary">-</Text>,
 		},
@@ -351,6 +385,8 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ user }) => {
 			title: 'Khối',
 			dataIndex: 'subject_group',
 			key: 'subject_group',
+			width: 70,
+			align: 'center' as const,
 			render: (group: string | null) =>
 				group ? <Tag color="green">{group}</Tag> : <Text type="secondary">-</Text>,
 		},
@@ -358,26 +394,24 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ user }) => {
 			title: 'Ngành',
 			dataIndex: 'target_major',
 			key: 'target_major',
+			width: 140,
+			ellipsis: true,
 			render: (major: string | null) => major || <Text type="secondary">-</Text>,
 		},
 		{
 			title: 'Ngày tạo',
 			dataIndex: 'created_at',
 			key: 'created_at',
+			width: 140,
 			render: (date: string) => formatDateTime(date),
-			width: 160,
 		},
 		{
-			title: 'Hành động',
+			title: '',
 			key: 'action',
-			width: 120,
+			width: 80,
 			render: (_: unknown, record: PotentialLead) => (
-				<Button
-					size="small"
-					type="primary"
-					onClick={() => handleMarkLeadReviewed(record.id)}
-				>
-					Đã xem
+				<Button size="small" type="primary" onClick={() => handleMarkLeadReviewed(record.id)}>
+					Xem
 				</Button>
 			),
 		},
@@ -387,211 +421,226 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({ user }) => {
 
 	return (
 		<div className={styles.aiPanel}>
-			<Row gutter={16}>
-				{/* Left: Session list + Leads */}
-				<Col span={12}>
-					<Card
-						title={
-							<Space>
-								<MessageOutlined />
-								Phiên hội thoại đang chờ
-								<Badge count={newAlertCount} overflowCount={99} />
-							</Space>
-						}
-						extra={<Badge status={socket.isConnected ? 'success' : 'error'} text={socket.isConnected ? 'Online' : 'Offline'} />}
-						className={styles.sessionCard}
-					>
-						{activeSessions.length === 0 ? (
-							<Empty description="Không có phiên hội thoại nào" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-						) : (
-							<List
-								dataSource={activeSessions}
-								renderItem={(session) => {
-									const chat = activeChats.get(session.session_id);
-									const hasAlert = chat?.hasNewMessage;
+			{/* Left: Session list + Leads */}
+			<div className={styles.leftPanel}>
+				<Card
+					title={
+						<Space>
+							<MessageOutlined />
+							Phiên hội thoại đang chờ
+							<Badge count={newAlertCount} overflowCount={99} />
+						</Space>
+					}
+					extra={<Badge status={socket.isConnected ? 'success' : 'error'} text={socket.isConnected ? 'Online' : 'Offline'} />}
+					className={styles.sessionCard}
+				>
+					{activeSessions.length === 0 ? (
+						<Empty description="Không có phiên hội thoại nào" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+					) : (
+						<List
+							dataSource={activeSessions}
+							renderItem={(session) => {
+								const chat = activeChats.get(session.session_id);
+								const hasAlert = chat?.hasNewMessage;
 
-									return (
-										<List.Item
-											className={`${styles.sessionItem} ${selectedSession?.sessionId === session.session_id ? styles.sessionItemActive : ''} ${hasAlert ? styles.sessionItemAlert : ''}`}
-											onClick={() => openSession(session)}
-											actions={[
-												hasAlert && (
-													<Tag color="red" icon={<ExclamationCircleOutlined />}>
-														Mới
-													</Tag>
-												),
-											]}
-										>
-											<List.Item.Meta
-												avatar={
-													<Badge dot={hasAlert} status="error" offset={[-4, 32]}>
-														<Avatar icon={<UserOutlined />} style={{ backgroundColor: hasAlert ? '#ff4d4f' : '#c41e3a' }} />
-													</Badge>
-												}
-												title={
-													<Space>
-														<Text strong>{chat?.studentName || `Session ${session.session_id.slice(0, 12)}...`}</Text>
-														{chat?.score && <Tag color="blue">{chat.score}</Tag>}
-													</Space>
-												}
-												description={
-													<Text type="secondary" ellipsis>
-														{session.last_message || chat?.messages[chat.messages.length - 1]?.content || 'Chưa có tin nhắn'}
-													</Text>
-												}
-											/>
-											<Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-												{formatTime(session.last_message_at)}
-											</Text>
-										</List.Item>
-									);
-								}}
-							/>
-						)}
-					</Card>
+								return (
+									<List.Item
+										className={`${styles.sessionItem} ${selectedSession?.sessionId === session.session_id ? styles.sessionItemActive : ''} ${hasAlert ? styles.sessionItemAlert : ''}`}
+										onClick={() => openSession(session)}
+										actions={[
+											hasAlert && (
+												<Tag color="red" icon={<ExclamationCircleOutlined />}>
+													Mới
+												</Tag>
+											),
+										]}
+									>
+										<List.Item.Meta
+											avatar={
+												<Badge dot={hasAlert} status="error" offset={[-4, 32]}>
+													<Avatar icon={<UserOutlined />} style={{ backgroundColor: hasAlert ? '#ff4d4f' : '#c41e3a' }} />
+												</Badge>
+											}
+											title={
+												<Space>
+													<Text strong>{chat?.studentName || `Session ${session.session_id.slice(0, 12)}...`}</Text>
+													{chat?.score && <Tag color="blue">{chat.score}</Tag>}
+												</Space>
+											}
+											description={
+												<Text type="secondary" ellipsis>
+													{session.last_message || chat?.messages[chat.messages.length - 1]?.content || 'Chưa có tin nhắn'}
+												</Text>
+											}
+										/>
+										<Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+											{formatTime(session.last_message_at)}
+										</Text>
+									</List.Item>
+								);
+							}}
+						/>
+					)}
+				</Card>
 
-					<Card
-						title={
-							<Space>
-								<TagOutlined />
-								Thí sinh tiềm năng (AI trích xuất)
-								<Tag color="orange">{totalLeads} chưa xem</Tag>
-							</Space>
-						}
-						className={styles.leadsCard}
-					>
-						<Spin spinning={loadingLeads}>
-							<Table
-								dataSource={leads}
-								columns={leadColumns}
-								rowKey="id"
-								size="small"
-								pagination={false}
-								scroll={{ y: 300 }}
-							/>
+				<Card
+					title={
+						<Space>
+							<TagOutlined />
+							Thí sinh tiềm năng
+							<Tag color="orange">{totalLeads} chưa xem</Tag>
+						</Space>
+					}
+					extra={
+						<span style={{ fontSize: 11, color: 'rgba(0,0,0,0.45)' }}>
+							AI trích xuất từ chat
+						</span>
+					}
+					className={styles.leadsCard}
+				>
+					<Spin spinning={loadingLeads}>
+							{leads.length === 0 && !loadingLeads ? (
+								<Empty
+									description={
+										<div style={{ fontSize: 13, color: 'rgba(0,0,0,0.45)', textAlign: 'center', padding: '16px 0' }}>
+											<div style={{ marginBottom: 4, fontWeight: 500, color: 'rgba(0,0,0,0.65)' }}>Chưa có thí sinh tiềm năng nào</div>
+											<div>Khi sinh viên nhắn tin cho AI và cung cấp thông tin (tên, điểm, ngành muốn xét tuyển), hệ thống sẽ tự động trích xuất và hiển thị ở đây.</div>
+										</div>
+									}
+									image={Empty.PRESENTED_IMAGE_SIMPLE}
+								/>
+							) : (
+								<Table
+									dataSource={leads}
+									columns={leadColumns}
+									rowKey="id"
+									size="small"
+									pagination={false}
+									scroll={{ y: 240 }}
+								/>
+							)}
 						</Spin>
-					</Card>
-				</Col>
+				</Card>
+			</div>
 
-				{/* Right: Active chat window */}
-				<Col span={12}>
-					<Card
-						title={
-							<Space>
-								<RobotOutlined />
-								{selectedSession
-									? `Hội thoại: ${currentChat?.studentName || selectedSession.sessionId.slice(0, 16)}...`
-									: 'Chọn một phiên để trò chuyện'}
-							</Space>
-						}
-						className={styles.chatCard}
-					>
-						{!selectedSession ? (
-							<Empty
-								description="Chọn một phiên hội thoại bên trái để bắt đầu trò chuyện với thí sinh"
-								image={Empty.PRESENTED_IMAGE_SIMPLE}
-							/>
-						) : (
-							<>
-								{/* Student info header */}
-								{currentChat && (currentChat.studentName || currentChat.score) && (
-									<div className={styles.studentInfo}>
-										<Descriptions size="small" column={3}>
-											{currentChat.studentName && (
-												<Descriptions.Item label="Họ tên">
-													<Space>
-														<UserOutlined />
-														{currentChat.studentName}
-													</Space>
-												</Descriptions.Item>
-											)}
-											{currentChat.score && (
-												<Descriptions.Item label="Điểm thi">
-													<Tag color="blue">{currentChat.score}</Tag>
-												</Descriptions.Item>
-											)}
-											{currentChat.subjectGroup && (
-												<Descriptions.Item label="Khối">
-													<Tag color="green">{currentChat.subjectGroup}</Tag>
-												</Descriptions.Item>
-											)}
-											{currentChat.targetMajor && (
-												<Descriptions.Item label="Ngành quan tâm">
-													<strong>{currentChat.targetMajor}</strong>
-												</Descriptions.Item>
-											)}
-										</Descriptions>
+			{/* Right: Active chat window */}
+			<div className={styles.rightPanel}>
+				<Card
+					title={
+						<Space>
+							<RobotOutlined />
+							{selectedSession
+								? `Hội thoại: ${currentChat?.studentName || selectedSession.sessionId.slice(0, 16)}...`
+								: 'Chọn một phiên để trò chuyện'}
+						</Space>
+					}
+					className={styles.chatCard}
+				>
+					{!selectedSession ? (
+						<Empty
+							description="Chọn một phiên hội thoại bên trái để bắt đầu trò chuyện với thí sinh"
+							image={Empty.PRESENTED_IMAGE_SIMPLE}
+						/>
+					) : (
+						<>
+							{/* Student info header */}
+							{currentChat && (currentChat.studentName || currentChat.score) && (
+								<div className={styles.studentInfo}>
+									<Descriptions size="small" column={3}>
+										{currentChat.studentName && (
+											<Descriptions.Item label="Họ tên">
+												<Space>
+													<UserOutlined />
+													{currentChat.studentName}
+												</Space>
+											</Descriptions.Item>
+										)}
+										{currentChat.score && (
+											<Descriptions.Item label="Điểm thi">
+												<Tag color="blue">{currentChat.score}</Tag>
+											</Descriptions.Item>
+										)}
+										{currentChat.subjectGroup && (
+											<Descriptions.Item label="Khối">
+												<Tag color="green">{currentChat.subjectGroup}</Tag>
+											</Descriptions.Item>
+										)}
+										{currentChat.targetMajor && (
+											<Descriptions.Item label="Ngành quan tâm">
+												<strong>{currentChat.targetMajor}</strong>
+											</Descriptions.Item>
+										)}
+									</Descriptions>
+								</div>
+							)}
+
+							{/* Messages */}
+							<div className={styles.adminChatMessages}>
+								{currentChat?.messages.map((msg, idx) => (
+									<div
+										key={idx}
+										className={`${styles.adminMessageRow} ${msg.role === 'admin' ? styles.adminMsgRow : styles.userMsgRow}`}
+									>
+										<div className={`${styles.adminMessageBubble} ${msg.role === 'admin' ? styles.adminBubble : styles.userBubble}`}>
+											<div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+												{msg.role === 'admin' ? (
+													<Avatar size={20} icon={<CustomerServiceOutlined />} style={{ backgroundColor: '#52c41a' }} />
+												) : (
+													<Avatar size={20} icon={<UserOutlined />} style={{ backgroundColor: '#c41e3a' }} />
+												)}
+												<Text type="secondary" style={{ fontSize: 11 }}>
+													{msg.role === 'admin' ? 'Tư vấn viên' : 'Thí sinh'}
+												</Text>
+											</div>
+											<div>{msg.content}</div>
+											<div style={{ textAlign: 'right', fontSize: 10, opacity: 0.6, marginTop: 4 }}>
+												{formatTime(msg.timestamp)}
+											</div>
+										</div>
+									</div>
+								))}
+
+								{currentChat?.isTyping && (
+									<div className={`${styles.adminMessageRow} ${styles.userMsgRow}`}>
+										<div className={`${styles.adminMessageBubble} ${styles.userBubble}`}>
+											<Space size="small">
+												<Text type="secondary">Thí sinh đang nhắn tin...</Text>
+											</Space>
+										</div>
 									</div>
 								)}
 
-								{/* Messages */}
-								<div className={styles.adminChatMessages}>
-									{currentChat?.messages.map((msg, idx) => (
-										<div
-											key={idx}
-											className={`${styles.adminMessageRow} ${msg.role === 'admin' ? styles.adminMsgRow : styles.userMsgRow}`}
-										>
-											<div className={`${styles.adminMessageBubble} ${msg.role === 'admin' ? styles.adminBubble : styles.userBubble}`}>
-												<div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-													{msg.role === 'admin' ? (
-														<Avatar size={20} icon={<CustomerServiceOutlined />} style={{ backgroundColor: '#52c41a' }} />
-													) : (
-														<Avatar size={20} icon={<UserOutlined />} style={{ backgroundColor: '#c41e3a' }} />
-													)}
-													<Text type="secondary" style={{ fontSize: 11 }}>
-														{msg.role === 'admin' ? 'Tư vấn viên' : 'Thí sinh'}
-													</Text>
-												</div>
-												<div>{msg.content}</div>
-												<div style={{ textAlign: 'right', fontSize: 10, opacity: 0.6, marginTop: 4 }}>
-													{formatTime(msg.timestamp)}
-												</div>
-											</div>
-										</div>
-									))}
+								<div ref={messagesEndRef} />
+							</div>
 
-									{currentChat?.isTyping && (
-										<div className={`${styles.adminMessageRow} ${styles.userMsgRow}`}>
-											<div className={`${styles.adminMessageBubble} ${styles.userBubble}`}>
-												<Space size="small">
-													<Text type="secondary">Thí sinh đang nhắn tin...</Text>
-												</Space>
-											</div>
-										</div>
-									)}
-
-									<div ref={messagesEndRef} />
-								</div>
-
-								{/* Reply input */}
-								<div className={styles.adminReplyArea}>
-									<TextArea
-										value={adminReply}
-										onChange={(e) => setAdminReply(e.target.value)}
-										placeholder="Nhập tin nhắn trả lời cho thí sinh..."
-										autoSize={{ minRows: 2, maxRows: 4 }}
-										onKeyDown={(e) => {
-											if (e.key === 'Enter' && !e.shiftKey) {
-												e.preventDefault();
-												handleSendReply();
-											}
-										}}
-									/>
-									<Button
-										type="primary"
-										icon={<SendOutlined />}
-										onClick={handleSendReply}
-										disabled={!adminReply.trim()}
-										style={{ marginTop: 8 }}
-									>
-										Gửi
-									</Button>
-								</div>
-							</>
-						)}
-					</Card>
-				</Col>
-			</Row>
+							{/* Reply input */}
+							<div className={styles.adminReplyArea}>
+								<TextArea
+									value={adminReply}
+									onChange={(e) => setAdminReply(e.target.value)}
+									placeholder="Nhập tin nhắn trả lời cho thí sinh..."
+									autoSize={{ minRows: 2, maxRows: 4 }}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter' && !e.shiftKey) {
+											e.preventDefault();
+											handleSendReply();
+										}
+									}}
+								/>
+								<Button
+									type="primary"
+									icon={<SendOutlined />}
+									onClick={handleSendReply}
+									disabled={!adminReply.trim()}
+									style={{ marginTop: 8 }}
+								>
+									Gửi
+								</Button>
+							</div>
+						</>
+					)}
+				</Card>
+			</div>
 		</div>
 	);
 };
