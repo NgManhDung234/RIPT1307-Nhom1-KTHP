@@ -16,15 +16,19 @@ dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+	? process.env.ALLOWED_ORIGINS.split(',')
+	: ['http://localhost:8000', 'http://localhost:3000', 'http://127.0.0.1:8000'];
+
 const io = new SocketIOServer(httpServer, {
 	cors: {
-		origin: ['http://localhost:8000', 'http://localhost:3000', 'http://127.0.0.1:8000'],
+		origin: allowedOrigins,
 		methods: ['GET', 'POST'],
 		credentials: true,
 	},
 });
 
-const port = process.env.BACKEND_PORT || 5000;
+const port = process.env.PORT || process.env.BACKEND_PORT || 5000;
 
 // ──────────────────────────────────────────────
 // Middleware
