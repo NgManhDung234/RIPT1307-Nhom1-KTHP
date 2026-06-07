@@ -19,6 +19,7 @@ import {
 	message,
 } from 'antd';
 import {
+	HomeOutlined,
 	BookOutlined,
 	CheckCircleOutlined,
 	DeleteOutlined,
@@ -41,11 +42,11 @@ import {
 	uploadAdmissionDocument,
 } from '../../services/admission';
 import { getCurrentUser, logout } from '../../utils/auth';
+import ChatBubble from '../../components/ChatBubble';
 import styles from './index.less';
 
 const { Step } = Steps;
 const { Dragger } = Upload;
-const { Option } = Select;
 const { Title, Text } = Typography;
 
 const provinces = ['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ'];
@@ -138,6 +139,7 @@ const StudentPage: React.FC = () => {
 	const [checklist, setChecklist] = useState<Array<{ key: string; label: string; done: boolean; detail?: string; step: number }>>([]);
 	const [documents, setDocuments] = useState<DocumentItem[]>(defaultDocumentItems);
 	const [previewDocument, setPreviewDocument] = useState<DocumentItem | null>(null);
+	const [isChatOpen, setIsChatOpen] = useState(false);
 
 	if (!user || user.role !== 'student') {
 		message.error('Bạn không có quyền truy cập trang sinh viên');
@@ -239,7 +241,7 @@ const StudentPage: React.FC = () => {
 		}
 	};
 
-	const buildUploadProps = (key: string) => {
+		const buildUploadProps = (key: string) => {
 		const currentItem = documents.find((item) => item.key === key);
 		const fileList = currentItem?.fileName
 			? [
@@ -256,6 +258,20 @@ const StudentPage: React.FC = () => {
 			fileList,
 			maxCount: 1,
 			disabled: isSubmissionLocked,
+			accept: '.jpg,.jpeg,.png,.pdf',
+			beforeUpload: (file: File) => {
+				const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+				const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+				if (file.size > MAX_SIZE) {
+					message.error(`${file.name} vượt quá 5MB. Vui lòng chọn tệp nhỏ hơn.`);
+					return false;
+				}
+				if (!allowedTypes.includes(file.type)) {
+					message.error('Chỉ hỗ trợ định dạng JPG, PNG, PDF');
+					return false;
+				}
+				return true;
+			},
 			customRequest: async ({ file, onSuccess, onError }: any) => {
 				try {
 					const rawFile = file as File;
@@ -467,17 +483,15 @@ const StudentPage: React.FC = () => {
 					</Form.Item>
 					<Form.Item label={renderRequiredLabel('Giới tính')} name="gender" rules={[{ required: true, message: 'Vui lòng chọn giới tính' }]}>
 						<Select placeholder="Chọn giới tính" disabled={isSubmissionLocked}>
-							<Option value="male">Nam</Option>
-							<Option value="female">Nữ</Option>
-							<Option value="other">Khác</Option>
+							<Select.Option value="male">Nam</Select.Option>
+							<Select.Option value="female">Nữ</Select.Option>
+							<Select.Option value="other">Khác</Select.Option>
 						</Select>
 					</Form.Item>
 					<Form.Item label={renderRequiredLabel('Dân tộc')} name="ethnicity" rules={[{ required: true, message: 'Vui lòng chọn dân tộc' }]}>
 						<Select showSearch placeholder="Chọn dân tộc" disabled={isSubmissionLocked}>
 							{ethnicities.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
 					</Form.Item>
@@ -487,9 +501,7 @@ const StudentPage: React.FC = () => {
 					<Form.Item label="Nơi sinh" name="birthPlace">
 						<Select showSearch placeholder="Chọn nơi sinh" disabled={isSubmissionLocked}>
 							{provinces.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
 					</Form.Item>
@@ -556,9 +568,7 @@ const StudentPage: React.FC = () => {
 					<Form.Item label={renderRequiredLabel('Năm tốt nghiệp')} name="graduationYear" rules={[{ required: true, message: 'Vui lòng chọn năm tốt nghiệp' }]}>
 						<Select placeholder="Chọn năm tốt nghiệp" disabled={isSubmissionLocked}>
 							{graduationYears.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
 					</Form.Item>
@@ -569,9 +579,7 @@ const StudentPage: React.FC = () => {
 					>
 						<Select placeholder="Chọn học lực lớp 12" disabled={isSubmissionLocked}>
 							{academicRanks.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
 					</Form.Item>
@@ -582,9 +590,7 @@ const StudentPage: React.FC = () => {
 					>
 						<Select placeholder="Chọn hạnh kiểm lớp 12" disabled={isSubmissionLocked}>
 							{conductRanks.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
 					</Form.Item>
@@ -604,9 +610,7 @@ const StudentPage: React.FC = () => {
 					>
 						<Select showSearch placeholder="Chọn Tỉnh/TP/Cục (THPT Lớp 10)" disabled={isSubmissionLocked}>
 							{provinces.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
 					</Form.Item>
@@ -617,9 +621,7 @@ const StudentPage: React.FC = () => {
 					>
 						<Select showSearch placeholder="Chọn Trường THPT/Khác (THPT Lớp 10)" disabled={isSubmissionLocked}>
 							{highSchools.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
 					</Form.Item>
@@ -630,9 +632,7 @@ const StudentPage: React.FC = () => {
 					>
 						<Select showSearch placeholder="Chọn Tỉnh/TP/Cục (THPT Lớp 11)" disabled={isSubmissionLocked}>
 							{provinces.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
 					</Form.Item>
@@ -643,9 +643,7 @@ const StudentPage: React.FC = () => {
 					>
 						<Select showSearch placeholder="Chọn Trường THPT/Khác (THPT Lớp 11)" disabled={isSubmissionLocked}>
 							{highSchools.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
 					</Form.Item>
@@ -656,9 +654,7 @@ const StudentPage: React.FC = () => {
 					>
 						<Select showSearch placeholder="Chọn Tỉnh/TP/Cục (THPT Lớp 12)" disabled={isSubmissionLocked}>
 							{provinces.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
 					</Form.Item>
@@ -669,9 +665,7 @@ const StudentPage: React.FC = () => {
 					>
 						<Select showSearch placeholder="Chọn Trường THPT/Khác (THPT Lớp 12)" disabled={isSubmissionLocked}>
 							{highSchools.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
 					</Form.Item>
@@ -684,9 +678,7 @@ const StudentPage: React.FC = () => {
 					<Form.Item label={renderRequiredLabel('Khu vực ưu tiên')} name="priorityArea" rules={[{ required: true, message: 'Vui lòng chọn khu vực ưu tiên' }]}>
 						<Select placeholder="Chọn khu vực ưu tiên" disabled={isSubmissionLocked}>
 							{priorityAreas.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
 					</Form.Item>
@@ -697,11 +689,32 @@ const StudentPage: React.FC = () => {
 					>
 						<Select placeholder="Chọn đối tượng ưu tiên" disabled={isSubmissionLocked}>
 							{priorityGroups.map((item) => (
-								<Option key={item} value={item}>
-									{item}
-								</Option>
+<Select.Option key={item} value={item}>{item}</Select.Option>
 							))}
 						</Select>
+					</Form.Item>
+				</div>
+			</div>
+
+			<div className={styles.formGroup}>
+				<div className={styles.groupTitle}>Điểm thi THPT</div>
+				<div className={styles.gridThree}>
+					<Form.Item label="Điểm môn 1 (Toán)" name="scoreSubject1" rules={[{ required: true, message: 'Vui lòng nhập điểm môn 1' }]}>
+						<Input type="number" min={0} max={10} step={0.25} placeholder="0 - 10" disabled={isSubmissionLocked} />
+					</Form.Item>
+					<Form.Item label="Điểm môn 2 (Lý)" name="scoreSubject2" rules={[{ required: true, message: 'Vui lòng nhập điểm môn 2' }]}>
+						<Input type="number" min={0} max={10} step={0.25} placeholder="0 - 10" disabled={isSubmissionLocked} />
+					</Form.Item>
+					<Form.Item label="Điểm môn 3 (Hóa)" name="scoreSubject3" rules={[{ required: true, message: 'Vui lòng nhập điểm môn 3' }]}>
+						<Input type="number" min={0} max={10} step={0.25} placeholder="0 - 10" disabled={isSubmissionLocked} />
+					</Form.Item>
+				</div>
+				<div className={styles.gridTwo} style={{ marginTop: 8 }}>
+					<Form.Item label="Tổng điểm 3 môn" name="totalScore">
+						<Input type="number" placeholder="Tự động tính hoặc nhập tay" disabled={isSubmissionLocked} />
+					</Form.Item>
+					<Form.Item label="Điểm ưu tiên" name="priorityScore">
+						<Input type="number" placeholder="Điểm cộng ưu tiên" disabled={isSubmissionLocked} />
 					</Form.Item>
 				</div>
 			</div>
@@ -717,9 +730,7 @@ const StudentPage: React.FC = () => {
 					</span>
 					<Select value={selectedSchool} showSearch onChange={setSelectedSchool} disabled={isSubmissionLocked}>
 						{schools.map((school) => (
-							<Option key={school} value={school}>
-								{school}
-							</Option>
+ <Select.Option key={school} value={school}>{school}</Select.Option>
 						))}
 					</Select>
 				</div>
@@ -729,9 +740,7 @@ const StudentPage: React.FC = () => {
 					</span>
 					<Select value={selectedMajor} showSearch onChange={setSelectedMajor} disabled={isSubmissionLocked}>
 						{availableMajors.map((major) => (
-							<Option key={major} value={major}>
-								{major}
-							</Option>
+ <Select.Option key={major} value={major}>{major}</Select.Option>
 						))}
 					</Select>
 				</div>
@@ -741,9 +750,7 @@ const StudentPage: React.FC = () => {
 					</span>
 					<Select value={selectedGroup} onChange={setSelectedGroup} disabled={isSubmissionLocked}>
 						{subjectGroups.map((group) => (
-							<Option key={group} value={group}>
-								{group}
-							</Option>
+ <Select.Option key={group} value={group}>{group}</Select.Option>
 						))}
 					</Select>
 				</div>
@@ -949,6 +956,9 @@ const StudentPage: React.FC = () => {
 							<Title level={3}>{stepItems[currentStep]}</Title>
 						</div>
 						<div className={styles.contentHeaderActions}>
+							<Button onClick={() => history.push('/student')}>
+								<HomeOutlined /> Trang chủ
+							</Button>
 							<Popover
 								content={accountPopoverContent}
 								trigger="click"
@@ -1011,6 +1021,8 @@ const StudentPage: React.FC = () => {
 					)}
 				</div>
 			</Modal>
+
+			<ChatBubble isOpen={isChatOpen} onToggle={() => setIsChatOpen((v) => !v)} />
 		</div>
 	);
 };
