@@ -1,0 +1,46 @@
+services:
+  # Backend Service
+  - type: web
+    name: student-management-backend
+    runtime: node
+    plan: free
+    buildCommand: cd src/backend && npm install && npm run build
+    startCommand: node dist-backend/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BACKEND_PORT
+        value: 5000
+      - key: DB_HOST
+        value: dpg-d8inc9u7r5hc73d3qi10-a
+      - key: DB_PORT
+        value: 5432
+      - key: DB_USER
+        value: student_app
+      - key: DB_PASSWORD
+        value: CbTm5QybkWHLrtUZuZD6fy6fqrlpVqRF
+      - key: DB_NAME
+        value: student_management_hcj1
+      - key: JWT_SECRET
+        value: my-secret-key-12345abc
+      - key: GMAIL_EMAIL
+        value: hdbn21072006@gmail.com
+      - key: GMAIL_APP_PASSWORD
+        value: llwp shcv btui wmyi
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
+      - key: MAX_HISTORY_PAIRS
+        value: 10
+      - key: TOP_K_CHUNKS
+        value: 5
+
+databases:
+  # PostgreSQL Database
+  - name: student-management-db
+    databaseName: student_management
+    user: student_app
+    plan: free

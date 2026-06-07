@@ -1,0 +1,17 @@
+{
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "CommonJS",
+		"moduleResolution": "node",
+		"esModuleInterop": true,
+		"strict": false,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"outDir": "dist-backend",
+		"ignoreDeprecations": "6.0",
+		"noImplicitAny": false,
+		"noEmitOnError": false
+	},
+	"include": ["**/*"],
+	"exclude": ["dist-backend"]
+}

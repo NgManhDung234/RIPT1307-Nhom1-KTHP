@@ -1,0 +1,27 @@
+import { Settings as LayoutSettings } from '@ant-design/pro-layout';
+
+const Settings: LayoutSettings & {
+	pwa?: boolean;
+	logo?: string;
+	borderRadiusBase: string;
+	siderWidth: number;
+	primaryColor: string;
+} = {
+	navTheme: 'light',
+	primaryColor: process.env.APP_CONFIG_PRIMARY_COLOR || '#CC0D00',
+	borderRadiusBase: '2px',
+	layout: 'mix',
+	contentWidth: 'Fluid',
+	fixedHeader: false,
+	fixSiderbar: true,
+	colorWeak: false,
+	title: 'Đăng kí tuyển sinh',
+	pwa: false,
+	logo: '/logo.png',
+	iconfontUrl: '',
+	headerTheme: 'light',
+	headerHeight: 60,
+	siderWidth: 220,
+};
+
+export default Settings;
